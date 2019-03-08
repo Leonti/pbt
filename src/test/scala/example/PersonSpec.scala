@@ -20,7 +20,7 @@ class PersonSpec extends FlatSpec with Matchers with GeneratorDrivenPropertyChec
     age <- Gen.choose(0,200)
   } yield Person(name, age)
 
-  forAll(genPerson) { (p: Person) =>
+  forAll(genPerson) { p: Person =>
     val full = fullName(p)
 
     p.name should contain(full.firstName)

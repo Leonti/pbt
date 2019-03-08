@@ -11,43 +11,28 @@ class: center, middle
 - Check output
 
 ```scala
-  "String" should "should be the same after round-trip case change" in {
-    val text = "hello"
-    text.toUpperCase.toLowerCase shouldBe text
+  def applyTax(salary: BigDecimal): BigDecimal = 
+    salary - salary * BigDecimal("0.37")
+```
+
+```scala
+  it should "apply tax" in {
+    applyTax(20000) shouldBe BigDecimal(12600)
   }
 ```
 ---
 # Property-based testing
 
-- Define a boolean property
-- Let the framework do testing with random values
+- Define a property
+- Let the framework do the testing with random values
 
 ```scala
-  it should "should be the same after round-trip case change 2" in {
-    check { text: String =>
-      text.toUpperCase.toLowerCase == text
-    }
+  it should "calculate sane tax" in {
+    check(forAll(Gen.posNum[Double]) { salary: Double =>
+      applyTax(BigDecimal(salary)) < salary
+    })
   }
 ```
----
-class: middle
-
-```scala
-  it should "should be the same after round-trip case change 2" in {
-    check { text: String =>
-      text.toUpperCase.toLowerCase == text
-    }
-  }
-```
-
-```
-  Falsified after 3 successful property evaluations.
-  Location: (StringSpec.scala:16)
-  Occurred when passed generated values (
-    arg0 = "B" // 7 shrinks
-  )
-```
-
 ---
 class: center, middle
 
@@ -81,11 +66,13 @@ class: center, middle
 class: middle
 
 ```scala
-  val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
+  val formatter = 
+    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
   it should "format date and be able to parse it" in {
     check { dateTime: LocalDateTime =>
-      dateTime == LocalDateTime.parse(dateTime.format(formatter), formatter)
+      dateTime == LocalDateTime
+        .parse(dateTime.format(formatter), formatter)
     }
   }
 ```
@@ -158,10 +145,13 @@ class: middle
 class: middle
 
 ```scala
-  def javaBase64(src: Array[Byte]) = Base64.getEncoder.encodeToString(src)
-  def myBase64(src: Array[Byte]) = new BASE64Encoder().encode(src)
+  def javaBase64(src: Array[Byte]) = 
+    Base64.getEncoder.encodeToString(src)
+    
+  def myBase64(src: Array[Byte]) = 
+    new BASE64Encoder().encode(src)
 
-  it should "generate the same base64 as the system 'base64' util" in {
+  it should "generate the same base64 as the system" in {
     check { bytes: Array[Byte] =>
       javaBase64(bytes) == myBase64(bytes)
     }
@@ -200,7 +190,8 @@ class: middle
 
     def run(counter: Counter): Result = counter.increment
 
-    def nextState(state: State): State = state.copy(count = state.count + 1)
+    def nextState(state: State): State = 
+      state.copy(count = state.count + 1)
 
     def preCondition(state: State): Boolean = true
 
@@ -214,6 +205,9 @@ class: middle
 class: middle
 
 ```scala
+  object StatefulCommands extends Commands {
+    ...
+  
   def newSut(state: State): Sut = Counter(state.count.toInt)
 
   def destroySut(sut: Sut): Unit = ()
@@ -269,9 +263,9 @@ intShrink.shrink(25).toList
 ```
 
 ```scala
-res0: List[Int] = List(50, -50, 25, -25, 12, -12, 6, -6, 3, -3, 1, -1, 0)
-res1: List[Int] = List(25, -25, 12, -12, 6, -6, 3, -3, 1, -1, 0)
-res2: List[Int] = List(12, -12, 6, -6, 3, -3, 1, -1, 0)
+List(50, -50, 25, -25, 12, -12, 6, -6, 3, -3, 1, -1, 0)
+List(25, -25, 12, -12, 6, -6, 3, -3, 1, -1, 0)
+List(12, -12, 6, -6, 3, -3, 1, -1, 0)
 ```
 
 ---
@@ -396,7 +390,8 @@ class: middle
     } yield title
   }
   
-  val validSalaryGen: Gen[String] = Gen.posNum[Double].map(_.toString)
+  val validSalaryGen: Gen[String] = 
+    Gen.posNum[Double].map(_.toString)
   val validTitleGen: Gen[String] = sizedStringGen(5, 500)
   val validContentGen: Gen[String] = sizedStringGen(100, 20000)
 
@@ -430,18 +425,18 @@ val invalidTitleGen: Gen[String] = sizedStringGen(0, 4)
 class: middle
 
 ```scala
-  case class InvalidForm(form: AdForm, invalidFields: Int)
+case class InvalidForm(form: AdForm, invalidFields: Int)
 
-  val invalidFormGen: Gen[InvalidForm] = for {
-    fieldTypes <- fieldTypesGen
-    title <- fieldGen(fieldTypes(0), validTitleGen, invalidTitleGen)
-    content <- fieldGen(fieldTypes(1), validContentGen, invalidContentGen)
-    lowSalary <- fieldGen(fieldTypes(2), validSalaryGen, invalidSalaryGen)
-    highSalary <- fieldGen(fieldTypes(3), validSalaryGen, invalidSalaryGen)
-  } yield InvalidForm(
-    AdForm(title, content, lowSalary, highSalary),
-    fieldTypes.count(_ != ValidField)
-  )
+val invalidFormGen: Gen[InvalidForm] = for {
+  fieldTypes <- fieldTypesGen
+  title <- fieldGen(fieldTypes(0), validTitleGen, invalidTitleGen)
+  content <- fieldGen(fieldTypes(1), validContentGen, invalidContentGen)
+  lowSalary <- fieldGen(fieldTypes(2), validSalaryGen, invalidSalaryGen)
+  highSalary <- fieldGen(fieldTypes(3), validSalaryGen, invalidSalaryGen)
+} yield InvalidForm(
+  AdForm(title, content, lowSalary, highSalary),
+  fieldTypes.count(_ != ValidField)
+)
 ```
 
 ---
@@ -449,15 +444,15 @@ class: middle
 class: middle
 
 ```scala
-  sealed trait FieldType
-  case object ValidField extends FieldType
-  case object InvalidField extends FieldType
-  case object MissingField extends FieldType
+sealed trait FieldType
+case object ValidField extends FieldType
+case object InvalidField extends FieldType
+case object MissingField extends FieldType
 
-  val fieldTypesGen: Gen[Seq[FieldType]] =
-    Gen.listOfN(4, Gen.oneOf(ValidField, InvalidField, MissingField))
-    .suchThat(fields => 
-    fields.contains(InvalidField) || fields.contains(MissingField))
+val fieldTypesGen: Gen[Seq[FieldType]] =
+  Gen.listOfN(4, Gen.oneOf(ValidField, InvalidField, MissingField))
+  .suchThat(fields => 
+  fields.contains(InvalidField) || fields.contains(MissingField))
 ```
 
 ---
@@ -468,7 +463,8 @@ class: middle
   it should "invalidate form" in {
     check(forAll(invalidFormGen) { invalidForm: InvalidForm =>
       toValidatedAd(invalidForm.form) match {
-        case Invalid(errors) => errors.length == invalidForm.invalidFields
+        case Invalid(errors) => 
+          errors.length == invalidForm.invalidFields
         case Valid(_) => false
       }
     })
@@ -480,18 +476,20 @@ class: middle
 class: middle
 
 ```scala
-  val validFormGen: Gen[AdForm] = for {
-    title <- validTitleGen
-    content <- validContentGen
-    lowSalary <- validSalaryGen
-    highSalary <- validSalaryGen
-  } yield AdForm(Some(title), Some(content), Some(lowSalary), Some(highSalary))
+val validFormGen: Gen[AdForm] = for {
+  title <- validTitleGen
+  content <- validContentGen
+  lowSalary <- validSalaryGen
+  highSalary <- validSalaryGen
+} yield AdForm(
+  Some(title), Some(content), 
+  Some(lowSalary), Some(highSalary))
   
-  it should "accept valid form" in {
-    check(forAll(validFormGen) { form: AdForm =>
-      toValidatedAd(form).isValid
-    })
-  }
+it should "accept valid form" in {
+  check(forAll(validFormGen) { form: AdForm =>
+    toValidatedAd(form).isValid
+  })
+}
 ```
 
 ---
@@ -499,7 +497,7 @@ class: middle
 class: middle
 
 ```scala
-  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+  implicit override val config: PropertyCheckConfiguration =
     PropertyCheckConfig(minSuccessful = 2000)
 ```
 
